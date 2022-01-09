@@ -1,10 +1,14 @@
-from fastapi import FastAPI, status, HTTPException
-from database import Base, engine
-from database import Article, Event, Launch
+
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-# Create ToDoRequest Base Model
+from database import Base, engine
+from database import Article, Event, Launch
+
+from fastapi import FastAPI, status, HTTPException, Depends
+from fastapi_pagination import Page, add_pagination, paginate
+
+# Create Article Base Model
 class ArticleRequest(BaseModel):
     title: str
     featured: bool
@@ -25,7 +29,7 @@ app = FastAPI()
 def root():
     return "Back-end Challenge 2021 🏅 - Space Flight News"
 
-@app.get("/articles/")
+@app.get("/articles/", response_model=Page[ArticleRequest])
 def read_article_list():
     # create a new database session
     session = Session(bind=engine, expire_on_commit=False)
@@ -48,7 +52,7 @@ def read_article_list():
                 
             }
         )
-    return result
+    return paginate(result)
 
 
 @app.post("/article/", status_code=status.HTTP_201_CREATED)
@@ -153,3 +157,5 @@ def delete_article(id: int):
 
     return None
 
+
+add_pagination(app) # to add all required deps to application
