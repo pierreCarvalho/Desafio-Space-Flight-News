@@ -1,4 +1,10 @@
 
+from typing import List
+
+from sqlalchemy.sql.schema import ForeignKey
+import databases
+import sqlalchemy
+
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -8,8 +14,51 @@ from database import Article, Event, Launch
 from fastapi import FastAPI, status, HTTPException, Depends
 from fastapi_pagination import Page, add_pagination, paginate
 
+# SQLAlchemy specific code, as with any other app
+DATABASE_URL = "postgresql://hwdvswaagmrprv:83e2e62897e562bddf8a03215db7070237bb41c70f3c458abe7f05940bc595c5@ec2-3-89-214-80.compute-1.amazonaws.com:5432/d5078beibf8jrp"
+
+database = databases.Database(DATABASE_URL)
+
+metadata = sqlalchemy.MetaData()
+
+articles = sqlalchemy.Table(
+    "articles",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("title", sqlalchemy.String),
+    sqlalchemy.Column("featured", sqlalchemy.Boolean),
+    sqlalchemy.Column("url", sqlalchemy.String),
+    sqlalchemy.Column("imageUrl", sqlalchemy.String),
+    sqlalchemy.Column("newsSite", sqlalchemy.String),
+    sqlalchemy.Column("summary", sqlalchemy.String),
+    sqlalchemy.Column("publishedAt", sqlalchemy.String),
+)
+
+events = sqlalchemy.Table(
+    "events",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("provider", sqlalchemy.String),
+    sqlalchemy.Column("articleid", sqlalchemy.Integer, ForeignKey("articles.id"), nullable=False)
+)
+
+launchs = sqlalchemy.Table(
+    "launchs",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("provider", sqlalchemy.String),
+    sqlalchemy.Column("articleid", sqlalchemy.Integer, ForeignKey("articles.id"), nullable=False)
+)
+
+engine = sqlalchemy.create_engine(
+    DATABASE_URL
+)
+metadata.create_all(engine)
+
 # Create Article Base Model
-class ArticleRequest(BaseModel):
+
+class Article(BaseModel):
+    id : int
     title: str
     featured: bool
     url: str
@@ -18,17 +67,72 @@ class ArticleRequest(BaseModel):
     summary: str
     publishedAt: str
 
+class ArticleRequest(BaseModel):
+    title: str
+    featured: bool
+    url: str
+    imageUrl: str
+    newsSite: str
+    summary: str
+    publishedAt: str
+    events: List[dict] = []
+    launches: List[dict] = []
+
+
+class Event(BaseModel):
+   
+    id : int 
+    provider : str 
+    articleid : int
+class Launch(BaseModel):
+    
+    id : int
+    provider : str 
+    articleid : int 
+
+
+'''
 # Create the database
 Base.metadata.create_all(engine)
-
+'''
 # Initialize app
 app = FastAPI()
+
+@app.on_event("startup")
+async def startup():
+    await database.connect()
+
+@app.on_event("shutdown")
+async def shutdown():
+    await database.disconnect()
+
+@app.get("/articles/", response_model=List[Article])
+async def read_articles():
+    query = articles.select()
+    resultado = await database.fetch_all(query)
+    return resultado
+
+@app.post("/articles/", response_model=Article)
+async def create_article(article: ArticleRequest):
+    query = articles.insert().values(title=article.title, featured=article.featured, url=article.url , imageUrl=article.imageUrl , newsSite=article.newsSite , summary=article.summary, publishedAt=article.publishedAt )
+    last_record_id = await database.execute(query)
+    if article.events:
+        for event in article.events:
+            _query_event = events.insert().values(id=int(event["id"]), provider=event["provider"] if event["provider"] else "", articleid=last_record_id)
+            await database.execute(_query_event)
+    if article.launches:
+        for launch in article.launches:
+            _query_launch = launchs.insert().values(id=int(launch["id"]), provider=launch["provider"] if launch["provider"] else "", articleid=last_record_id)
+            await database.execute(_query_launch)
+    return {**article.dict(), "id": last_record_id}
 
 
 @app.get("/", status_code=status.HTTP_200_OK)
 def root():
     return "Back-end Challenge 2021 🏅 - Space Flight News"
 
+add_pagination(app) # to add all required deps to application
+'''
 @app.get("/articles/", response_model=Page[ArticleRequest])
 def read_article_list():
     # create a new database session
@@ -158,4 +262,4 @@ def delete_article(id: int):
     return None
 
 
-add_pagination(app) # to add all required deps to application
+add_pagination(app) # to add all required deps to application'''
