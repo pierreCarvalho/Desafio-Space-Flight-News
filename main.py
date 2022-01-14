@@ -1,10 +1,12 @@
-
-from typing import List
+from tkinter import W
+from typing import List, Optional
+import requests
+import json
 
 from sqlalchemy.sql.schema import ForeignKey
 import databases
 import sqlalchemy
-
+from sqlalchemy.sql.expression import Select
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -28,10 +30,10 @@ articles = sqlalchemy.Table(
     sqlalchemy.Column("title", sqlalchemy.String),
     sqlalchemy.Column("featured", sqlalchemy.Boolean),
     sqlalchemy.Column("url", sqlalchemy.String),
-    sqlalchemy.Column("imageUrl", sqlalchemy.String),
-    sqlalchemy.Column("newsSite", sqlalchemy.String),
+    sqlalchemy.Column("imageurl", sqlalchemy.String),
+    sqlalchemy.Column("newssite", sqlalchemy.String),
     sqlalchemy.Column("summary", sqlalchemy.String),
-    sqlalchemy.Column("publishedAt", sqlalchemy.String),
+    sqlalchemy.Column("publishedat", sqlalchemy.String),
 )
 
 events = sqlalchemy.Table(
@@ -39,113 +41,181 @@ events = sqlalchemy.Table(
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("provider", sqlalchemy.String),
-    sqlalchemy.Column("articleid", sqlalchemy.Integer, ForeignKey("articles.id"), nullable=False)
+    sqlalchemy.Column(
+        "articleid",
+        sqlalchemy.Integer,
+        ForeignKey("articles.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
 )
 
 launchs = sqlalchemy.Table(
     "launchs",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("id_launch", sqlalchemy.String),
     sqlalchemy.Column("provider", sqlalchemy.String),
-    sqlalchemy.Column("articleid", sqlalchemy.Integer, ForeignKey("articles.id"), nullable=False)
+    sqlalchemy.Column(
+        "articleid",
+        sqlalchemy.Integer,
+        ForeignKey("articles.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
 )
 
-engine = sqlalchemy.create_engine(
-    DATABASE_URL
-)
+engine = sqlalchemy.create_engine(DATABASE_URL)
 metadata.create_all(engine)
 
 # Create Article Base Model
 
-class Article(BaseModel):
-    id : int
-    title: str
-    featured: bool
-    url: str
-    imageUrl: str
-    newsSite: str
-    summary: str
-    publishedAt: str
 
-class ArticleRequest(BaseModel):
-    title: str
-    featured: bool
-    url: str
-    imageUrl: str
-    newsSite: str
-    summary: str
-    publishedAt: str
-    events: List[dict] = []
-    launches: List[dict] = []
+class Article(BaseModel):
+    id: int
+    title: Optional[str] = None
+    featured: Optional[bool] = None
+    url: Optional[str] = None
+    imageurl: Optional[str] = None
+    newssite: Optional[str] = None
+    summary: Optional[str] = None
+    publishedat: Optional[str] = None
 
 
 class Event(BaseModel):
-   
-    id : int 
-    provider : str 
-    articleid : int
+
+    id: int
+    provider: str
+    articleid: int
+
+
 class Launch(BaseModel):
-    
-    id : int
-    provider : str 
-    articleid : int 
+
+    id: int
+    id_launch: str
+    provider: str
+    articleid: int
 
 
-'''
-# Create the database
-Base.metadata.create_all(engine)
-'''
+class ArticleRequest(BaseModel):
+    title: Optional[str] = None
+    featured: Optional[bool] = None
+    url: Optional[str] = None
+    imageurl: Optional[str] = None
+    newssite: Optional[str] = None
+    summary: Optional[str] = None
+    publishedat: Optional[str] = None
+    events: List[Event] = []
+    launches: List[Launch] = []
+
+
 # Initialize app
 app = FastAPI()
+
 
 @app.on_event("startup")
 async def startup():
     await database.connect()
 
+
 @app.on_event("shutdown")
 async def shutdown():
     await database.disconnect()
 
-@app.get("/articles/", response_model=List[Article])
+
+@app.get("/articles/", response_model=List[ArticleRequest])
 async def read_articles():
-    query = articles.select()
-    resultado = await database.fetch_all(query)
-    return resultado
+    # query = articles.select()
+    # resultado = await database.fetch_all(query)
+    # query = (
+    #    "SELECT *  FROM articles inner join events on events.articleid = articles.id "
+    # )
+
+    # query_launch = "SELECT launch.id_launch, launch.provider, launch.articleid from launchs as launch"
+    query_article = (
+        "SELECT article.id, article.title,article.featured FROM articles as article "
+    )
+    result = await database.fetch_all(query=query_article)
+    """_query = "SELECT *  FROM events"
+    _result = await database.fetch_all(query=query_launch)
+    print(result)
+    print(_result)
+    launhcs = []
+    for j in _result:
+        launhcs.append(
+            {
+                "id_launch": j["id_launch"],
+                "provider": j["provider"],
+                "articleid": j["articleid"],
+            }
+        )
+    for i in result:
+        print(i)
+        print(i["title"])
+        i["launches"] = []
+        for k in launhcs:
+            if k["articleid"] == i["id"]:
+                print("ENCONTREI")
+                i["launches"].append({"id": k["id_launch"], "provider": k["provider"]})"""
+    return result
+
 
 @app.post("/articles/", response_model=Article)
 async def create_article(article: ArticleRequest):
-    query = articles.insert().values(title=article.title, featured=article.featured, url=article.url , imageUrl=article.imageUrl , newsSite=article.newsSite , summary=article.summary, publishedAt=article.publishedAt )
+    query = articles.insert().values(
+        title=article.title,
+        featured=article.featured,
+        url=article.url,
+        imageUrl=article.imageUrl,
+        newsSite=article.newsSite,
+        summary=article.summary,
+        publishedAt=article.publishedAt,
+    )
     last_record_id = await database.execute(query)
     if article.events:
         for event in article.events:
-            _query_event = events.insert().values(id=int(event["id"]), provider=event["provider"] if event["provider"] else "", articleid=last_record_id)
+            _query_event = events.insert().values(
+                id=event["id"],
+                provider=event["provider"] if event["provider"] else "",
+                articleid=last_record_id,
+            )
             await database.execute(_query_event)
     if article.launches:
         for launch in article.launches:
-            _query_launch = launchs.insert().values(id=int(launch["id"]), provider=launch["provider"] if launch["provider"] else "", articleid=last_record_id)
+            _query_launch = launchs.insert().values(
+                id_launch=launch["id"],
+                provider=launch["provider"] if launch["provider"] else "",
+                articleid=last_record_id,
+            )
             await database.execute(_query_launch)
     return {**article.dict(), "id": last_record_id}
+
+
+@app.get("/article/{id}")
+async def read_article(id: int):
+
+    query = "SELECT * FROM articles WHERE id = :id"
+    result = await database.fetch_one(query=query, values={"id": id})
+
+    return result
 
 
 @app.get("/", status_code=status.HTTP_200_OK)
 def root():
     return "Back-end Challenge 2021 🏅 - Space Flight News"
 
-add_pagination(app) # to add all required deps to application
-'''
-@app.get("/articles/", response_model=Page[ArticleRequest])
-def read_article_list():
+
+@app.put("/article/{id}")
+async def update_article(article: ArticleRequest, id: int):
     # create a new database session
     session = Session(bind=engine, expire_on_commit=False)
+    try:
+        # get the article item with the given id
+        # create a new database session
 
-    # get the todo item with the given id
-    articles = session.query(Article).all()
+        # update todo item with the given task (if an item with the given id was found)
+        if article:
 
-    result = []
-    for article in articles:
-        result.append(
-            {
-                "id": article.id,
+            _values = {
+                "id": id,
                 "title": article.title,
                 "featured": article.featured,
                 "url": article.url,
@@ -153,113 +223,58 @@ def read_article_list():
                 "newsSite": article.newsSite,
                 "summary": article.summary,
                 "publishedAt": article.publishedAt,
-                
             }
-        )
-    return paginate(result)
 
+            query = "UPDATE articles SET title = :title,featured = :featured,url = :url,imageUrl = :imageUrl,newsSite = :newsSite,summary = :summary,publishedAt = :publishedAt, WHERE id= :id "
+            result = await database.fetch_one(query=query, values=_values)
 
-@app.post("/article/", status_code=status.HTTP_201_CREATED)
-def create_article(article: ArticleRequest):
-    # create a new database session
-    session = Session(bind=engine, expire_on_commit=False)
-
-    # create an instance of the ToDo database model
-    article_db = Article(
-        title = article.title,
-        featured= article.featured,
-        url= article.url,
-        imageUrl= article.imageUrl,
-        newsSite= article.newsSite,
-        summary= article.summary,
-        publishedAt= article.publishedAt )
-
-    # add it to the session and commit it
-    session.add(article_db)
-    session.commit()
-
-    # grab the id given to the object from the database
-    id = article_db.id
-
-    # close the session
-    session.close()
-
-    # return the id
-    return f"created todo item with id {id}"
-
-@app.get("/article/{id}")
-def read_article(id: int):
-    # create a new database session
-    session = Session(bind=engine, expire_on_commit=False)
-
-    # get the todo item with the given id
-    article = session.query(Article).get(id)
-
-    # close the session
-    session.close()
-    article_response = {
-        "id": article.id,
-        "title": article.title,
-        "featured": article.featured,
-        "url": article.url,
-        "imageUrl": article.imageUrl,
-        "newsSite": article.newsSite,
-        "summary": article.summary,
-        "publishedAt": article.publishedAt,
-        
-    }
-    
-    return article_response
-
-
-@app.put("/article/{id}")
-def update_article(article: ArticleRequest, id: int):
-    # create a new database session
-    session = Session(bind=engine, expire_on_commit=False)
-    try:
-        # get the article item with the given id
-        article_db = session.query(Article).get(id)
-
-        #validar campos
-
-        # update todo item with the given task (if an item with the given id was found)
-        if article_db:
-            article_db.title = article.title if article.title else article_db.title
-            article_db.featured = article.featured if article.featured else article_db.featured
-            article_db.url = article.url if article.url else article_db.url
-            article_db.imageUrl = article.imageUrl if article.imageUrl else article_db.imageUrl
-            article_db.newsSite = article.newsSite if article.newsSite else article_db.newsSite
-            article_db.summary = article.summary if article.summary else article_db.summary
-            article_db.publishedAt = article.publishedAt if article.publishedAt else article_db.publishedAt
-
-            session.commit()
-
-            # close the session
-            session.close()
             return "article update!"
         else:
             return "article does not exist!"
     except:
-        raise HTTPException(status_code=404, detail=f"article item with id {id} not found")
+        raise HTTPException(
+            status_code=404, detail=f"article item with id {id} not found"
+        )
+
 
 @app.delete("/article/{id}")
-def delete_article(id: int):
+async def delete_article(id: int):
     # create a new database session
-    session = Session(bind=engine, expire_on_commit=False)
-
-    # get the article item with the given id
-    article = session.query(Article).get(id)
-
-    # if todo item with given id exists, delete it from the database. Otherwise raise 404 error
-    if article:
-        session.delete(article)
-        session.commit()
-        session.close()
-    else:
-        raise HTTPException(status_code=404, detail=f"article with id {id} not found")
-
+    query = "DELETE FROM articles WHERE id = :id"
+    result = await database.fetch_one(query=query, values={"id": id})
 
     return None
 
 
-add_pagination(app) # to add all required deps to application'''
+@app.get("/buscar-dados/")
+async def buscar_dados():
+
+    request = requests.get("https://api.spaceflightnewsapi.net/v3/articles/")
+    artigos = json.loads(request.content)
+    for artigo in artigos:
+        query = articles.insert().values(
+            title=artigo["title"],
+            featured=artigo["featured"],
+            url=artigo["url"],
+            imageurl=artigo["imageUrl"],
+            newssite=artigo["newsSite"],
+            summary=artigo["summary"],
+            publishedat=artigo["publishedAt"],
+        )
+        last_record_id = await database.execute(query)
+        if artigo["events"]:
+            for event in artigo["events"]:
+                _query_event = events.insert().values(
+                    id=event["id"],
+                    provider=event["provider"] if event["provider"] else "",
+                    articleid=last_record_id,
+                )
+                await database.execute(_query_event)
+        if artigo["launches"]:
+            for launch in artigo["launches"]:
+                _query_launch = launchs.insert().values(
+                    id_launch=launch["id"],
+                    provider=launch["provider"] if launch["provider"] else "",
+                    articleid=last_record_id,
+                )
+                await database.execute(_query_launch)
