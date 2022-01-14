@@ -17,9 +17,12 @@ Métodos e tecnologias utilizadas:
         virtualenv -p python3 nome_da_virtualenv ou virtualenv nome_da_virtualenv
         ```
   - Ative a virtualenv com:
-     - ```
-        source nome_da_virtualenv/bin/activate (Linux ou macOS) ou nome_da_virtualenv/Scripts/Activate (Windows)
-      ```
+     - Windows:
+      -  ```
+         nome_da_virtualenv/Scripts/Activate 
+           ```
+     - Linux ou MacOs:
+      - source nome_da_virtualenv/bin/activate
   - Faça instalação dos pacotes:
     - ```
       pip install -r requirements.txt
