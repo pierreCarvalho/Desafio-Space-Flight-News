@@ -18,8 +18,7 @@ Métodos e tecnologias utilizadas:
         ```
   - Ative a virtualenv com:
      - ```
-      source nome_da_virtualenv/bin/activate (Linux ou macOS)
-      nome_da_virtualenv/Scripts/Activate (Windows
+        source nome_da_virtualenv/bin/activate (Linux ou macOS) ou nome_da_virtualenv/Scripts/Activate (Windows
       ```
   - Faça instalação dos pacotes:
     - ```
