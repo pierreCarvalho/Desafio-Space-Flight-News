@@ -14,9 +14,13 @@ Métodos e tecnologias utilizadas:
   - Faça o clone do projeto.
   - Dentro da pasta de projeto, crie uma virtualenv com https://virtualenv.pypa.io/en/latest/:
      - ```
-        virtualenv -p python3 venv ou virtualenv nome_da_virtualenv
+        virtualenv -p python3 nome_da_virtualenv ou virtualenv nome_da_virtualenv
         ```
-
+  - Ative a virtualenv com:
+   ```
+      source nome_da_virtualenv/bin/activate (Linux ou macOS)
+      nome_da_virtualenv/Scripts/Activate (Windows
+   ````
 
 https://desafio-space-flights.herokuapp.com/
 
