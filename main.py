@@ -114,7 +114,7 @@ async def shutdown():
 @app.get("/articles/", response_model=List[ArticleRequest])
 async def read_articles():
     query_article = (
-        "SELECT article.id, article.title,article.featured FROM articles as article "
+        "SELECT article.id, article.title,article.featured,article.url,article.imageurl,article.newssite,article.summary,article.publishedat FROM articles as article "
     )
     result = await database.fetch_all(query=query_article)
     return result
