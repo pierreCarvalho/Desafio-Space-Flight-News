@@ -1,23 +1,18 @@
-from tkinter import W
+import os
 from typing import List, Optional
 import requests
 import json
-
-from sqlalchemy.sql.schema import ForeignKey
 import databases
 import sqlalchemy
-from sqlalchemy.sql.expression import Select
+from dotenv import load_dotenv
+from sqlalchemy.sql.schema import ForeignKey
+from fastapi import FastAPI, status, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from database import Base, engine
-from database import Article, Event, Launch
-
-from fastapi import FastAPI, status, HTTPException, Depends
-from fastapi_pagination import Page, add_pagination, paginate
-
 # SQLAlchemy specific code, as with any other app
-DATABASE_URL = "postgresql://hwdvswaagmrprv:83e2e62897e562bddf8a03215db7070237bb41c70f3c458abe7f05940bc595c5@ec2-3-89-214-80.compute-1.amazonaws.com:5432/d5078beibf8jrp"
+load_dotenv()
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 database = databases.Database(DATABASE_URL)
 
@@ -66,9 +61,6 @@ launchs = sqlalchemy.Table(
 engine = sqlalchemy.create_engine(DATABASE_URL)
 metadata.create_all(engine)
 
-# Create Article Base Model
-
-
 class Article(BaseModel):
     id: int
     title: Optional[str] = None
@@ -107,9 +99,7 @@ class ArticleRequest(BaseModel):
     launches: List[Launch] = []
 
 
-# Initialize app
 app = FastAPI()
-
 
 @app.on_event("startup")
 async def startup():
@@ -123,38 +113,10 @@ async def shutdown():
 
 @app.get("/articles/", response_model=List[ArticleRequest])
 async def read_articles():
-    # query = articles.select()
-    # resultado = await database.fetch_all(query)
-    # query = (
-    #    "SELECT *  FROM articles inner join events on events.articleid = articles.id "
-    # )
-
-    # query_launch = "SELECT launch.id_launch, launch.provider, launch.articleid from launchs as launch"
     query_article = (
         "SELECT article.id, article.title,article.featured FROM articles as article "
     )
     result = await database.fetch_all(query=query_article)
-    """_query = "SELECT *  FROM events"
-    _result = await database.fetch_all(query=query_launch)
-    print(result)
-    print(_result)
-    launhcs = []
-    for j in _result:
-        launhcs.append(
-            {
-                "id_launch": j["id_launch"],
-                "provider": j["provider"],
-                "articleid": j["articleid"],
-            }
-        )
-    for i in result:
-        print(i)
-        print(i["title"])
-        i["launches"] = []
-        for k in launhcs:
-            if k["articleid"] == i["id"]:
-                print("ENCONTREI")
-                i["launches"].append({"id": k["id_launch"], "provider": k["provider"]})"""
     return result
 
 
