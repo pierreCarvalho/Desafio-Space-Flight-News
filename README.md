@@ -22,7 +22,9 @@ Métodos e tecnologias utilizadas:
          nome_da_virtualenv/Scripts/Activate 
            ```
      - Linux ou MacOs:
-      - ```source nome_da_virtualenv/bin/activate```
+      - ```
+         source nome_da_virtualenv/bin/activate
+        ```
   - Faça instalação dos pacotes:
     - ```
       pip install -r requirements.txt
