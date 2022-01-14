@@ -21,7 +21,7 @@ Métodos e tecnologias utilizadas:
       -  ```
          nome_da_virtualenv/Scripts/Activate 
            ```
-     - Linux ou MacOs:
+     - Linux ou macOS:
       - ```
          source nome_da_virtualenv/bin/activate
         ```
