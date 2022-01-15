@@ -38,3 +38,5 @@ https://desafio-space-flights.herokuapp.com/
 
 
 This is a challenge by [Coodesh](https://coodesh.com)
+
+Link da apresentação: https://www.loom.com/share/73f70df2d16d47bda7805147aeba6e88
