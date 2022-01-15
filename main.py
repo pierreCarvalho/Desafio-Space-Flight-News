@@ -88,6 +88,7 @@ class Launch(BaseModel):
 
 
 class ArticleRequest(BaseModel):
+    id: Optional[int] = None
     title: Optional[str] = None
     featured: Optional[bool] = None
     url: Optional[str] = None
@@ -98,6 +99,15 @@ class ArticleRequest(BaseModel):
     events: List[Event] = []
     launches: List[Launch] = []
 
+
+class ArticleRequestPut(BaseModel):
+    title: Optional[str] = None
+    featured: Optional[bool] = None
+    url: Optional[str] = None
+    imageurl: Optional[str] = None
+    newssite: Optional[str] = None
+    summary: Optional[str] = None
+    publishedat: Optional[str] = None
 
 app = FastAPI()
 
@@ -126,10 +136,10 @@ async def create_article(article: ArticleRequest):
         title=article.title,
         featured=article.featured,
         url=article.url,
-        imageUrl=article.imageUrl,
-        newsSite=article.newsSite,
+        imageurl=article.imageurl,
+        newssite=article.newssite,
         summary=article.summary,
-        publishedAt=article.publishedAt,
+        publishedat=article.publishedat,
     )
     last_record_id = await database.execute(query)
     if article.events:
@@ -151,7 +161,7 @@ async def create_article(article: ArticleRequest):
     return {**article.dict(), "id": last_record_id}
 
 
-@app.get("/article/{id}")
+@app.get("/articles/{id}")
 async def read_article(id: int):
 
     query = "SELECT * FROM articles WHERE id = :id"
@@ -165,48 +175,41 @@ def root():
     return "Back-end Challenge 2021 🏅 - Space Flight News"
 
 
-@app.put("/article/{id}")
-async def update_article(article: ArticleRequest, id: int):
-    # create a new database session
-    session = Session(bind=engine, expire_on_commit=False)
+@app.put("/articles/{id}")
+async def update_article(article: ArticleRequestPut, id: int):
+
     try:
-        # get the article item with the given id
-        # create a new database session
+  
+        _values = {
+            "id": id,
+            "title": article.title,
+            "featured": article.featured,
+            "url": article.url,
+            "imageurl": article.imageurl,
+            "newssite": article.newssite,
+            "summary": article.summary,
+            "publishedat": article.publishedat,
+        }
 
-        # update todo item with the given task (if an item with the given id was found)
-        if article:
+        query = "UPDATE articles SET title = :title,featured = :featured,url = :url,imageurl = :imageurl,newsSite = :newssite,summary = :summary,publishedat = :publishedat WHERE id= :id "
+        result = await database.fetch_one(query=query, values=_values)
 
-            _values = {
-                "id": id,
-                "title": article.title,
-                "featured": article.featured,
-                "url": article.url,
-                "imageUrl": article.imageUrl,
-                "newsSite": article.newsSite,
-                "summary": article.summary,
-                "publishedAt": article.publishedAt,
-            }
-
-            query = "UPDATE articles SET title = :title,featured = :featured,url = :url,imageUrl = :imageUrl,newsSite = :newsSite,summary = :summary,publishedAt = :publishedAt, WHERE id= :id "
-            result = await database.fetch_one(query=query, values=_values)
-
-            return "article update!"
-        else:
-            return "article does not exist!"
-    except:
+        return "article update!"
+    except Exception as e:
         raise HTTPException(
-            status_code=404, detail=f"article item with id {id} not found"
+            status_code=404, detail=f"Error to update: {e} "
         )
 
 
-@app.delete("/article/{id}")
+@app.delete("/articles/{id}")
 async def delete_article(id: int):
-    # create a new database session
-    query = "DELETE FROM articles WHERE id = :id"
-    result = await database.fetch_one(query=query, values={"id": id})
+    try:
+        query = "DELETE FROM articles WHERE id = :id"
+        result = await database.fetch_one(query=query, values={"id": id})
 
-    return None
-
+        return "deleted!"
+    except Exception as e:
+        return "Erro: ", e
 
 @app.get("/buscar-dados/")
 async def buscar_dados():
